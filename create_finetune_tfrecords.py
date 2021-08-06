@@ -10,6 +10,7 @@ import tensorflow as tf
 from lm_dataformat import Reader
 from transformers import GPT2TokenizerFast
 from tqdm import tqdm
+from tqdm.contrib.concurrent import process_map
 
 
 def parse_args():
@@ -73,7 +74,7 @@ def parse_args():
 
 def get_files(input_dir):
     filetypes = ["jsonl.zst", ".txt", ".xz", ".tar.gz"]
-    files = [list(Path(input_dir).glob(f"*{ft}")) for ft in filetypes]
+    files = [list(Path(input_dir).glob(f"**/*{ft}")) for ft in filetypes]
     # flatten list of list -> list and stringify Paths
     return [str(item) for sublist in files for item in sublist]
 
@@ -243,7 +244,7 @@ def chunk_and_finalize(arrays, args, encoder):
     return full_seqs, trailing_data
 
 
-def create_tfrecords(files, args):
+def create_tfrecords(files, args, dir_id):
     GPT2TokenizerFast.max_model_input_sizes['gpt2'] = 1e20  # disables a misleading warning
     encoder = GPT2TokenizerFast.from_pretrained('gpt2')
 
@@ -276,15 +277,27 @@ def create_tfrecords(files, args):
 
     total_sequence_len = len(all_sequences_across_epochs)
 
-    fp = os.path.join(args.output_dir, f"{args.name}_{total_sequence_len}.tfrecords")
+    fp = os.path.join(args.output_dir, f"{args.name}_{total_sequence_len}_{dir_id}.tfrecords")
     write_tfrecord(all_sequences_across_epochs, fp)
 
+
+
+def write_dir(entry):
+    input_dir, args, dir_id = entry
+    files = get_files(input_dir)
+    return create_tfrecords(files, args, dir_id)
 
 if __name__ == "__main__":
     args = parse_args()
 
     if args.output_dir:
         os.makedirs(args.output_dir, exist_ok=True)
-    files = get_files(args.input_dir)
 
-    results = create_tfrecords(files, args)
+    entries = []
+    for dir_id, dir in enumerate(os.listdir(args.input_dir)):
+        input_dir = os.path.join(args.input_dir, dir)
+        print (dir_id, input_dir)
+        entries.append((input_dir, args, dir_id))
+
+    POOL_SIZE = 8
+    p = process_map(write_dir, entries, max_workers=POOL_SIZE)
