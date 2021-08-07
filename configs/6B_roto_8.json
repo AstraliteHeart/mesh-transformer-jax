@@ -29,15 +29,6 @@
     "fimfiction": "fimfiction.val.index"
   },
 
-  "eval_harness_tasks": [
-    "lambada",
-    "piqa",
-    "hellaswag",
-    "winogrande",
-    "mathqa",
-    "pubmedqa"
-  ],
-
   "val_batches": 100,
   "val_every": 500,
   "ckpt_every": 5000,
