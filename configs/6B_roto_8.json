@@ -34,6 +34,7 @@
   "ckpt_every": 5000,
   "keep_every": 10000,
 
-  "name": "GPT3_6B_pile_rotary",
-  "comment": ""
+  "name": "GPT3_6B_fimfiction_rotary",
+  "comment": "",
+  "eval_harness_tasks" : []
 }
