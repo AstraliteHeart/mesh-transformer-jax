@@ -2,6 +2,7 @@ import argparse
 import os
 import re
 import random
+import math
 
 from pathlib import Path
 
@@ -281,10 +282,13 @@ def create_tfrecords(files, args, dir_id):
     write_tfrecord(all_sequences_across_epochs, fp)
 
 
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
 
 def write_dir(entry):
-    input_dir, args, dir_id = entry
-    files = get_files(input_dir)
+    files, args, dir_id = entry
     return create_tfrecords(files, args, dir_id)
 
 if __name__ == "__main__":
@@ -293,11 +297,14 @@ if __name__ == "__main__":
     if args.output_dir:
         os.makedirs(args.output_dir, exist_ok=True)
 
+    files = get_files(args.input_dir)
+    random.shuffle(files)
+
+    CHUNKS = 100
+
     entries = []
-    for dir_id, dir in enumerate(os.listdir(args.input_dir)):
-        input_dir = os.path.join(args.input_dir, dir)
-        print (dir_id, input_dir)
-        entries.append((input_dir, args, dir_id))
+    for chunk_id, chunk in enumerate(chunks(files, math.ceil(len(files) / CHUNKS))):
+        entries.append((chunk, args, chunk_id))
 
     POOL_SIZE = 8
     p = process_map(write_dir, entries, max_workers=POOL_SIZE)
